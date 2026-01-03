@@ -100,7 +100,7 @@ async function bootstrap() {
 
   await setupSwagger(app, isProduction);
 
-  await app.listen(configService.get('PORT') || 3170);
+  await app.listen(configService.get('PORT') || 3170, '0.0.0.0');
 
   // Graceful shutdown
   process.on('SIGTERM', async () => {
