@@ -12,7 +12,10 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { InfraTokenModule } from './infra-token/infra-token.module';
 import { NestExpressApplication } from '@nestjs/platform-express';
 
-function setupSwagger(app: NestExpressApplication, isProduction: boolean): void {
+function setupSwagger(
+  app: NestExpressApplication,
+  isProduction: boolean,
+): void {
   const swaggerDocPath = '/api-docs';
 
   const config = new DocumentBuilder()
@@ -43,9 +46,17 @@ async function bootstrap() {
 
   const configService = app.get(ConfigService);
   const isProduction = configService.get('PRODUCTION') === 'true';
+  const trustProxyEnabled = configService.get('TRUST_PROXY') === 'true';
+  const allowSecureCookies =
+    configService.get('INFRA.ALLOW_SECURE_COOKIES') === 'true';
 
   console.log(`Running in production: ${isProduction}`);
   console.log(`Port: ${configService.get('PORT')}`);
+
+  if (trustProxyEnabled) {
+    console.log('Enabling trust proxy');
+    app.set('trust proxy', true);
+  }
 
   app.use(
     session({
@@ -57,6 +68,14 @@ async function bootstrap() {
       secret:
         configService.get<string>('INFRA.SESSION_SECRET') ||
         crypto.randomBytes(16).toString('hex'),
+      resave: false,
+      saveUninitialized: false,
+      proxy: trustProxyEnabled,
+      cookie: {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: allowSecureCookies,
+      },
     }),
   );
 
@@ -90,11 +109,6 @@ async function bootstrap() {
       transform: true,
     }),
   );
-
-  if (configService.get('TRUST_PROXY') === 'true') {
-    console.log('Enabling trust proxy');
-    app.set('trust proxy', true);
-  }
 
   app.use(morgan(':remote-addr :method :url :status - :response-time ms'));
 
